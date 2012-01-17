@@ -1,5 +1,8 @@
 *.6
-_obj/
+*.out
+*.a
 *~
 *.sw*
-citeplasm-rest-server
+src/citeplasm-rest-server
+src/_test
+_*.go
