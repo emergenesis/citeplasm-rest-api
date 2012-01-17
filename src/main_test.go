@@ -6,6 +6,7 @@ import (
     "http"
     "fmt"
     "io/ioutil"
+    "json"
 )
 
 func getRequest( url string ) ( code int, body string ) {
@@ -15,7 +16,7 @@ func getRequest( url string ) ( code int, body string ) {
         panic(fmt.Sprintf("Bug in test: cannot construct http.Request from method=GET, url=%q, body=%#v: %s", url, body, err))
     }
     request.Header.Add("Accept", "application/json")
-    
+
     response, err := client.Do(request)
     if err != nil {
         panic(fmt.Sprintf("Bug in test: cannot run request: GET %s\nError: %v", url, err))
@@ -31,9 +32,18 @@ func getRequest( url string ) ( code int, body string ) {
 
 func MainSpec(c gospec.Context) {
     c.Specify("GET /v1.0", func() {
+        statusCode, responseBody := getRequest ("http://localhost:9999/v1.0")
+
+        c.Specify("returns a status code of 200", func () {
+            c.Expect(statusCode, Equals, 200)
+        })
+
         c.Specify("returns a list of available resources", func () {
-            code, _ := getRequest ("http://localhost:9999/v1.0")
-            c.Expect(code, Equals, 200)
+            var msg MessageSuccess
+            err := json.Unmarshal([]byte(responseBody), &msg)
+            c.Expect(err, Equals, nil)
+            c.Expect(msg.Msg, Equals, "success")
+            c.Expect(len(msg.Results), Equals, 2)
         })
     })
 }
