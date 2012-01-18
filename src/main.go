@@ -1,9 +1,14 @@
 package main
 
 import (
-    "web"
-    "json"
-    "strings"
+    "web" // powers the main api
+    "json" // for json marshal/unmarshal
+    "strings" // to parse request headers
+    "crypto/md5" // for authentication verification
+    "crypto/hmac" // for authentication verification
+    "hash" // for authentication verification
+    "encoding/base64" // for authentication verification
+    "io/ioutil" // to read request bodies
 )
 
 type Resource struct {
@@ -48,8 +53,42 @@ func isAuthenticated( ctx *web.Context ) bool {
                 if len(keyValue) != 2 {
                     error = MessageError{401,"The Authenticate header must be of the form 'GDS username:signature'."}
                 } else {
-                    // TODO ensure key exists and is valid user
-                    // TODO validate value is as expected
+                    // ensure key exists and is valid user
+                    // for now, we use a static username and password
+                    if keyValue[0] != "username" {
+                        error = MessageError{401, "The Authenticate header did not contain a valid user."}
+                    } else {
+                        // validate value is as expected
+                        var (
+                            signature string
+                            bodyHash hash.Hash
+                            sigHmac hash.Hash
+                        )
+
+                        body, _ := ioutil.ReadAll(ctx.Request.Body)
+
+                        // do an MD5 hash of the body
+                        bodyHash = md5.New()
+                        bodyHash.Write(body)
+
+                        // compute the signature value
+                        signature += ctx.Request.Method + "\n"
+                        signature += string(bodyHash.Sum()) + "\n"
+                        signature += ctx.Request.Headers.Get("Date") + "\n"
+                        signature += ctx.Request.URL.Path + "\n"
+
+                        // create the hmac
+                        sigHmac = hmac.NewSHA1([]byte("password"))
+                        sigHmac.Write([]byte(signature))
+
+                        correctHash := base64.StdEncoding.EncodeToString(sigHmac.Sum())
+
+                        if keyValue[1] != correctHash {
+                            error = MessageError{401, "The Authenticate header did not contain a valid signature."}
+                        } else {
+                            // TODO validate date is current to within 15min
+                        }
+                    }
                 }
             }
         }
