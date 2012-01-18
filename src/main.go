@@ -3,6 +3,7 @@ package main
 import (
     "web"
     "json"
+    "strings"
 )
 
 type Resource struct {
@@ -13,6 +14,54 @@ type Resource struct {
 type MessageSuccess struct {
     Msg string `json:"msg"`
     Results []Resource `json:"results"`
+}
+
+type MessageError struct {
+    Code int `json:"code"`
+    Message string `json:"msg"`
+}
+
+func ( msg *MessageError ) Json () string {
+    j, _ := json.MarshalIndent(msg, "", "    ")
+    return string(j)
+}
+
+func isAuthenticated( ctx *web.Context ) bool {
+    var error MessageError
+    authHeader := ctx.Request.Headers.Get("Authorization")
+
+    // ensure header was provided
+    if authHeader == "" {
+        error = MessageError{401,"You must authenticate prior to accessing this resource."}
+    } else {
+        // parse header to ensure GDS key:value
+        authFields := strings.Fields(authHeader)
+        if len(authFields) != 2 {
+            error = MessageError{401,"The Authenticate header must be of the form 'GDS username:signature'."}
+        } else {
+            // ensure appropriate auth method
+            if authFields[0] != "GDS" {
+                error = MessageError{401,"The Authenticate header must be of the form 'GDS username:signature'."}
+            } else {
+                // parse key:value
+                keyValue := strings.Split(authFields[1], ":")
+                if len(keyValue) != 2 {
+                    error = MessageError{401,"The Authenticate header must be of the form 'GDS username:signature'."}
+                } else {
+                    // TODO ensure key exists and is valid user
+                    // TODO validate value is as expected
+                }
+            }
+        }
+    }
+
+    if error.Code != 0 {
+        ctx.SetHeader("WWW-Authenticate", "GDS realm=\"http://api.citeplasm.com/v1.0\"", true)
+        ctx.Abort(401, error.Json())
+        return false
+    }
+
+    return true
 }
 
 func main() {
@@ -34,8 +83,35 @@ func main() {
         } else {
             ctx.Abort(500, "internal error: " + err.String())
         }
-        //return "Citeplasm API version 1"
     })
+
+    // TODO: GET /users
+    // TODO: POST /users
+
+    // TODO: GET /users/id
+    // TODO: PUT /users/id
+    // TODO: DELETE /users/id
+
+    // GET /users/id/texts
+    web.Get("/v1.0/users/(.+)/texts", func(ctx *web.Context, user string) {
+        ctx.SetHeader("Content-type", "application/json", true)
+        if ! isAuthenticated(ctx) {
+            return
+        }
+    })
+
+    // TODO: POST /users/id/texts
+
+    // TODO: GET /users/id/texts/id
+    // TODO: PUT /users/id/texts/id
+    // TODO: DELETE /users/id/texts/id
+
+    // TODO: GET /users/id/resources
+    // TODO: POST /users/id/resources
+
+    // TODO: GET /users/id/resources/id
+    // TODO: PUT /users/id/resources/id
+    // TODO: DELETE /users/id/resources/id
 
     web.Run("0.0.0.0:9999")
 }
