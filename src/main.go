@@ -1,28 +1,6 @@
 package main
 
-import (
-    "encoding/json"
-)
-
-type Resource struct {
-	Label string `json:"label"`
-	Uri   string `json:"uri"`
-}
-
-type MessageSuccess struct {
-	Msg     string     `json:"msg"`
-	Results []Resource `json:"results"`
-}
-
-type MessageError struct {
-	Code    int    `json:"code"`
-	Message string `json:"msg"`
-}
-
-func (msg *MessageError) Json() []byte {
-	j, _ := json.MarshalIndent(msg, "", "    ")
-	return j
-}
+// main is the entry point to the REST API server.
 func main() {
 
     var server = NewServer()
@@ -37,13 +15,7 @@ func main() {
 		providers := Resource{"providers", "/v1.0/providers"}
 		resources := Resource{"resources", "/v1.0/resources"}
 		msg := MessageSuccess{"success", []Resource{providers, resources}}
-
-		b, err := json.MarshalIndent(msg, "", "    ")
-		if err == nil {
-			ctx.Write(b)
-		} else {
-			//ctx.Abort(500, "internal error: "+err.String())
-		}
+		ctx.Write(msg.Json())
 	})
 
 	// TODO: GET /users
@@ -54,7 +26,7 @@ func main() {
 	// TODO: DELETE /users/id
 
 	// GET /users/id/texts
-	server.Get("/v1.0/users/(.+)/texts", func(ctx *WebContext) {
+	server.Get("/v1.0/users/(.+)/texts", func(ctx *WebContext, user string) {
 		ctx.Header.Set("Content-type", "application/json")
 		if ! IsAuthenticated(ctx) {
 			return
