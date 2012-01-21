@@ -18,6 +18,19 @@ func main() {
 		ctx.Write(msg.Json())
 	})
 
+        // GET /providers
+	server.Get("/v1.0/providers", func(ctx *WebContext) {
+		ctx.Header.Set("Content-type", "application/json")
+		if ! IsAuthenticated(ctx) {
+			return
+		}
+
+                db := DbConnect()
+                providers := GetProviders(db)
+                msg := MessageSuccess{"success", providers}
+                ctx.Write(msg.Json())
+	})
+
 	// TODO: GET /users
 	// TODO: POST /users
 
@@ -25,14 +38,7 @@ func main() {
 	// TODO: PUT /users/id
 	// TODO: DELETE /users/id
 
-	// GET /users/id/texts
-	server.Get("/v1.0/users/(.+)/texts", func(ctx *WebContext, user string) {
-		ctx.Header.Set("Content-type", "application/json")
-		if ! IsAuthenticated(ctx) {
-			return
-		}
-	})
-
+	// TODO: GET /users/id/texts
 	// TODO: POST /users/id/texts
 
 	// TODO: GET /users/id/texts/id

@@ -82,6 +82,7 @@ func (srv *Server) ServeHTTP (response http.ResponseWriter, request *http.Reques
             }
 
             // call the function
+            // FIXME: this should be called safely
             srv.Handlers[i].Handler.Call(args)
 
             // we have a match, so we're done
@@ -95,7 +96,7 @@ func (srv *Server) ServeHTTP (response http.ResponseWriter, request *http.Reques
         json := `{ code: 404, msg: "Resource does not exist." }`
         response.WriteHeader(404)
         response.Write([]byte(json))
-    }
+    } // FIXME: return 404 if there is no match
 }
 
 // addRoute is an internal function that adds a new function handler

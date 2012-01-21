@@ -4,6 +4,7 @@ TARG=citeplasm-rest-server
 GOFILES=\
 	main.go\
 	Data.go\
+	Provider.go\
 	Auth.go\
 	Server.go\
 

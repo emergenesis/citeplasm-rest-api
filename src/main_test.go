@@ -12,6 +12,7 @@ import (
 	"io/ioutil"       // parsing response bodies
 	"net/http"        // used to run queries against the main server
 	"time"            // Date header
+        "log"
 )
 
 // ProcessedResponse is a simple container for handling responses.
@@ -19,6 +20,31 @@ type ProcessedResponse struct {
 	Header http.Header
 	Code   int
 	Body   string
+}
+
+// LoadFixtures flushes the database and loads the test data
+func LoadFixtures() error {
+    // connect to the DB
+    c := DbConnect()
+
+    // flush its contents
+    if err := c.Flushall(); err != nil {
+        return err
+    }
+
+    // create some incrementers
+    c.Set("nxUserId", 1000)
+    c.Set("nxProvId", 1000)
+    c.Set("nxRsrcId", 1000)
+    c.Set("nxTextId", 1000)
+
+    // create a few dummy providers
+    p1 := NewProvider(c, "National Library of Medicine")
+    p2 := NewProvider(c, "FactCheck.org")
+    p3 := NewProvider(c, "OpenLibrary.org")
+    SaveHashes(p1, p2, p3)
+
+    return nil
 }
 
 // createRequest is a basic http.NewRequest wrapper with error handling.
@@ -66,6 +92,7 @@ func GetRequest(url string) ProcessedResponse {
 	return ProcessedResponse{response.Header, response.StatusCode, body}
 }
 
+// CreateSignature generates a GDS authentication signature
 func CreateSignature(verb string, body string, date string, uri string) string {
 	var (
 		signature string
@@ -120,17 +147,15 @@ func MainSpec(c gospec.Context) {
 		})
 	})
 
-	c.Specify("GET /v1.0/users/abcde/texts", func() {
-		response := GetRequestWithAuth("/v1.0/users/abcde/texts")
-
+	c.Specify("GET /v1.0/providers", func() {
 		c.Specify("returns 401 unauthorized when Authorization is not provided", func() {
-			response := GetRequest("/v1.0/users/abcde/texts")
+			response := GetRequest("/v1.0/providers")
 			c.Expect(response.Code, Equals, 401)
 			c.Expect(response.Header.Get("WWW-Authenticate"), Not(IsNil))
 		})
 
 		c.Specify("returns 401 unauthorized when Authorization does not contain two arguments", func() {
-			request := createRequest("GET", "/v1.0/users/abcde/texts")
+			request := createRequest("GET", "/v1.0/providers")
 			request.Header.Add("Authorization", "invalid auth header")
 			response := do(request)
 			body := getResponseBody(response)
@@ -143,7 +168,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns 401 unauthorized when Authorization does not contain GDS", func() {
-			request := createRequest("GET", "/v1.0/users/abcde/texts")
+			request := createRequest("GET", "/v1.0/providers")
 			request.Header.Add("Authorization", "INVALID onetwothreefour")
 			response := do(request)
 			body := getResponseBody(response)
@@ -156,7 +181,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns 401 unauthorized when Authorization does not have key:signature format", func() {
-			request := createRequest("GET", "/v1.0/users/abcde/texts")
+			request := createRequest("GET", "/v1.0/providers")
 			request.Header.Add("Authorization", "GDS onetwothreefour")
 			response := do(request)
 			body := getResponseBody(response)
@@ -169,7 +194,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns 401 unauthorized when key is not a valid username", func() {
-			request := createRequest("GET", "/v1.0/users/abcde/texts")
+			request := createRequest("GET", "/v1.0/providers")
 			request.Header.Add("Authorization", "GDS baduser:signature")
 			response := do(request)
 			body := getResponseBody(response)
@@ -182,7 +207,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns 401 unauthorized when the signature is not valid", func() {
-			request := createRequest("GET", "/v1.0/users/abcde/texts")
+			request := createRequest("GET", "/v1.0/providers")
 			request.Header.Add("Authorization", "GDS username:signature")
 			response := do(request)
 			body := getResponseBody(response)
@@ -194,8 +219,19 @@ func MainSpec(c gospec.Context) {
 			c.Expect(msg.Code, Equals, 401)
 		})
 
-		c.Specify("returns 200 OK when valid credentials are provided", func() {
+		c.Specify("returns a list of providers when valid credentials are provided", func() {
+                        if err := LoadFixtures(); err != nil {
+                            log.Fatal("Could not load fixtures")
+                        }
+
+		        response := GetRequestWithAuth("/v1.0/providers")
 			c.Expect(response.Code, Equals, 200)
+
+                        var msg MessageSuccess
+			err := json.Unmarshal([]byte(response.Body), &msg)
+			c.Expect(err, Equals, nil)
+			c.Expect(msg.Msg, Equals, "success")
+			c.Expect(len(msg.Results), Equals, 3)
 		})
 	})
 }
