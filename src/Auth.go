@@ -9,11 +9,15 @@ import (
 	"strings"         // to parse request headers
 )
 
+// Is Authenticated checks the request header to ensure the client has sent an
+// appropriate and valid Authentication header.
 func IsAuthenticated(ctx *WebContext) bool {
 	var error MessageError
+
+        // get the Authorization request header
 	authHeader := ctx.Request.Header.Get("Authorization")
 
-	// ensure header was provided
+	// ensure the header was provided
 	if authHeader == "" {
 		error = MessageError{401, "You must authenticate prior to accessing this resource."}
 	} else {

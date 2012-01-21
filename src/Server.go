@@ -7,23 +7,48 @@ import (
         "reflect"              // for processing router handlers
 )
 
+// Handler represents a function handler for a specified URI. Server's Get,
+// Put, Post, and Delete methods create and store Handlers from the information
+// provided and use those Handlers to respond to matching HTTP requests.
 type Handler struct {
+    // Method is the HTTP request method for which this Handler can respond.
     Method string
+
+    // Uri is a regular expression of the URIs to which this Handler can
+    // respond.
     Uri *regexp.Regexp
+
+    // Handler is a reflect.Value representation of a function to handle the
+    // request.
     Handler reflect.Value
 }
 
+// Server represents the HTTP server responsible for processing URIs by a set
+// of handlers.
 type Server struct {
+
+    // Handlers is an array of registered Handlers the server can use to
+    // respond to an HTTP request.
     Handlers []Handler
 }
 
+// WebContext represents the context under which a particular Handler is invoked.
 type WebContext struct {
+
+    // Header represents the HTTP response headers.
     Header http.Header
+
+    // Request represents the HTTP request, including its header and body.
     Request *http.Request
+
+    // conn is an internal construct used by WebContext functions for rendering
+    // or manipulating the response.
     conn http.ResponseWriter
 }
 
+// NewServer creates a new HTTP Server.
 func NewServer () Server {
+    // create a new server, allowing a maximum of 250 URI handlers.
     var srv Server
     srv.Handlers = make([]Handler, 0, 250)
     return srv
@@ -33,7 +58,6 @@ func NewServer () Server {
 
 // Start initiates the server
 func (srv *Server) Start (host string) {
-    //http.Handle("/(.*)", srv)
     log.Printf("Started Citeplasm API on %s\n", host)
     log.Fatal(http.ListenAndServe(host, srv))
 }
@@ -41,6 +65,8 @@ func (srv *Server) Start (host string) {
 // ServeHTTP implements http.Handler's ServeHTTP function and is responsible
 // for processing all requests to the server.
 func (srv *Server) ServeHTTP (response http.ResponseWriter, request *http.Request) {
+    // create some convenience variables for use in comparing the actual
+    // request to the various request handlers.
     targetMethod := request.Method
     targetUri := request.URL.Path
     targetQuery := request.URL.RawQuery
@@ -60,18 +86,18 @@ func (srv *Server) ServeHTTP (response http.ResponseWriter, request *http.Reques
 
     // search srv.Handlers for a compatible match
     match := false
-    //log.Printf("Looking for match for %s %s (%d possible matches)", targetMethod, targetUri, len(srv.Handlers))
     for i := 0; i < len(srv.Handlers); i++ {
+        // create some convenience variables for comparing this handler to the
+        // actual request
         thisMethod := srv.Handlers[i].Method
         thisUri := srv.Handlers[i].Uri
-        //log.Printf("...checking %s %s", thisMethod, thisUri.String())
 
         // if we find a match...
         if thisMethod == targetMethod && thisUri.MatchString(targetUri) {
             // unravel URL parameters and map somewhere in the WebContext
             matchedParams := thisUri.FindStringSubmatch(targetUri)
 
-            // create the args
+            // create the args to pass to the handler function
             var args []reflect.Value
 
             // we always include the context
@@ -91,30 +117,34 @@ func (srv *Server) ServeHTTP (response http.ResponseWriter, request *http.Reques
         }
     }
 
+    // if there was no matching route, we should return a 404 error
     if ! match {
-        // return 404
-        json := `{ code: 404, msg: "Resource does not exist." }`
+        err404 := MessageError{404, "Resource does not exist."}
         response.WriteHeader(404)
-        response.Write([]byte(json))
-    } // FIXME: return 404 if there is no match
+        response.Write(err404.Json())
+    }
 }
 
 // addRoute is an internal function that adds a new function handler
 func (srv *Server) addRoute (method string, uri string, handler interface{}) {
+    // we are only going to store the compiled URI regex
     re, err := regexp.Compile("^" + uri + "$")
     if err != nil {
         log.Fatalf("Error in route regular expression: %s", uri)
         return
     }
 
+    // get the reflect.Type and reflect.Value of the handler
     handlerValue := reflect.ValueOf(handler)
     handlerType := handlerValue.Type()
 
+    // log a fatal error if handler is not a function
     if handlerType.Kind() != reflect.Func {
         log.Fatalf("Handler must be a function for route %s %s . %s", method, uri, handlerType.Kind().String())
         return
     }
 
+    // ensure the handler takes at least 1 arg, that is a ptr, to a WebContext
     if handlerType.NumIn() == 0 ||
        handlerType.In(0).Kind() != reflect.Ptr ||
        handlerType.In(0).Elem() != reflect.TypeOf(WebContext{}) {
@@ -122,6 +152,7 @@ func (srv *Server) addRoute (method string, uri string, handler interface{}) {
         return
     }
 
+    // create the handler and add it to the server's set of handlers
     h := Handler{method, re, handlerValue}
     srv.Handlers = append(srv.Handlers, h)
 

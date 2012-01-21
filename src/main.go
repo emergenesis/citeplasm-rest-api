@@ -11,6 +11,7 @@ func main() {
 	})
 
         server.Get("/v1.0", func(ctx *WebContext) {
+                // return a set of available resources
 		ctx.Header.Set("Content-type", "application/json")
 		providers := Resource{"providers", "/v1.0/providers"}
 		resources := Resource{"resources", "/v1.0/resources"}
@@ -20,16 +21,27 @@ func main() {
 
         // GET /providers
 	server.Get("/v1.0/providers", func(ctx *WebContext) {
-		ctx.Header.Set("Content-type", "application/json")
+                // ensure the user properly authenticated
 		if ! IsAuthenticated(ctx) {
 			return
 		}
 
+                // connect to the DB
                 db := DbConnect()
+
+                // fetch a list of providers
                 providers := GetProviders(db)
+
+                // create a response message for the providers and write it out
                 msg := MessageSuccess{"success", providers}
                 ctx.Write(msg.Json())
 	})
+
+        // TODO: POST /providers
+
+        // TODO: GET /providers/id
+        // TODO: PUT /providers/id
+        // TODO: DELETE /providers/id
 
 	// TODO: GET /users
 	// TODO: POST /users
@@ -52,5 +64,6 @@ func main() {
 	// TODO: PUT /users/id/resources/id
 	// TODO: DELETE /users/id/resources/id
 
+        // start the server on all addresses on port 9999
         server.Start(":9999")
 }
