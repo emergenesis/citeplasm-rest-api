@@ -12,7 +12,6 @@ import (
 	"io/ioutil"       // parsing response bodies
 	"net/http"        // used to run queries against the main server
 	"time"            // Date header
-        "log"
 )
 
 // ProcessedResponse is a simple container for handling responses.
@@ -27,11 +26,6 @@ func LoadFixtures() error {
     // connect to the DB
     c := DbConnect()
 
-    // flush its contents
-    if err := c.Flushall(); err != nil {
-        return err
-    }
-
     // create some incrementers
     c.Set("nxUserId", 1000)
     c.Set("nxProvId", 1000)
@@ -43,6 +37,18 @@ func LoadFixtures() error {
     p2 := NewProvider(c, "FactCheck.org")
     p3 := NewProvider(c, "OpenLibrary.org")
     SaveHashes(p1, p2, p3)
+
+    return nil
+}
+
+func FlushDb() error {
+    // connect to the DB
+    c := DbConnect()
+
+    // flush its contents
+    if err := c.Flushall(); err != nil {
+        return err
+    }
 
     return nil
 }
@@ -148,6 +154,7 @@ func MainSpec(c gospec.Context) {
 	})
 
 	c.Specify("GET /v1.0/providers", func() {
+
 		c.Specify("returns 401 unauthorized when Authorization is not provided", func() {
 			response := GetRequest("/v1.0/providers")
 			c.Expect(response.Code, Equals, 401)
@@ -220,10 +227,6 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns a list of providers when valid credentials are provided", func() {
-                        if err := LoadFixtures(); err != nil {
-                            log.Fatal("Could not load fixtures")
-                        }
-
 		        response := GetRequestWithAuth("/v1.0/providers")
 			c.Expect(response.Code, Equals, 200)
 
