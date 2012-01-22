@@ -5,12 +5,7 @@ func main() {
 
     var server = NewServer()
 
-	// redirect / to current version (e.g. /v1.0)
-	server.Get("/", func(ctx *WebContext) {
-		ctx.Redirect(301, "/v1.0")
-	})
-
-        server.Get("/v1.0", func(ctx *WebContext) {
+        server.Get("/", func(ctx *WebContext) {
                 // return a set of available resources
 		ctx.Header.Set("Content-type", "application/json")
 		providers := Resource{"providers", "/v1.0/providers"}
@@ -20,7 +15,7 @@ func main() {
 	})
 
         // GET /providers
-	server.Get("/v1.0/providers", func(ctx *WebContext) {
+	server.Get("/providers", func(ctx *WebContext) {
                 // ensure the user properly authenticated
 		if ! IsAuthenticated(ctx) {
 			return

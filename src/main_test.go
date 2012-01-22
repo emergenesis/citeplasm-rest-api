@@ -137,8 +137,8 @@ func GetRequestWithAuth(uri string) ProcessedResponse {
 
 // MainSpec is the master specification test for the REST server.
 func MainSpec(c gospec.Context) {
-	c.Specify("GET /v1.0", func() {
-		response := GetRequest("/v1.0")
+	c.Specify("GET /", func() {
+		response := GetRequest("/")
 
 		c.Specify("returns a status code of 200", func() {
 			c.Expect(response.Code, Equals, 200)
@@ -153,16 +153,16 @@ func MainSpec(c gospec.Context) {
 		})
 	})
 
-	c.Specify("GET /v1.0/providers", func() {
+	c.Specify("GET /providers", func() {
 
 		c.Specify("returns 401 unauthorized when Authorization is not provided", func() {
-			response := GetRequest("/v1.0/providers")
+			response := GetRequest("/providers")
 			c.Expect(response.Code, Equals, 401)
 			c.Expect(response.Header.Get("WWW-Authenticate"), Not(IsNil))
 		})
 
 		c.Specify("returns 401 unauthorized when Authorization does not contain two arguments", func() {
-			request := createRequest("GET", "/v1.0/providers")
+			request := createRequest("GET", "/providers")
 			request.Header.Add("Authorization", "invalid auth header")
 			response := do(request)
 			body := getResponseBody(response)
@@ -175,7 +175,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns 401 unauthorized when Authorization does not contain GDS", func() {
-			request := createRequest("GET", "/v1.0/providers")
+			request := createRequest("GET", "/providers")
 			request.Header.Add("Authorization", "INVALID onetwothreefour")
 			response := do(request)
 			body := getResponseBody(response)
@@ -188,7 +188,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns 401 unauthorized when Authorization does not have key:signature format", func() {
-			request := createRequest("GET", "/v1.0/providers")
+			request := createRequest("GET", "/providers")
 			request.Header.Add("Authorization", "GDS onetwothreefour")
 			response := do(request)
 			body := getResponseBody(response)
@@ -201,7 +201,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns 401 unauthorized when key is not a valid username", func() {
-			request := createRequest("GET", "/v1.0/providers")
+			request := createRequest("GET", "/providers")
 			request.Header.Add("Authorization", "GDS baduser:signature")
 			response := do(request)
 			body := getResponseBody(response)
@@ -214,7 +214,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns 401 unauthorized when the signature is not valid", func() {
-			request := createRequest("GET", "/v1.0/providers")
+			request := createRequest("GET", "/providers")
 			request.Header.Add("Authorization", "GDS username:signature")
 			response := do(request)
 			body := getResponseBody(response)
@@ -227,7 +227,7 @@ func MainSpec(c gospec.Context) {
 		})
 
 		c.Specify("returns a list of providers when valid credentials are provided", func() {
-		        response := GetRequestWithAuth("/v1.0/providers")
+		        response := GetRequestWithAuth("/providers")
 			c.Expect(response.Code, Equals, 200)
 
                         var msg MessageSuccess

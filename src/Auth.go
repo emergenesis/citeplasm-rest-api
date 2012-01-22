@@ -77,7 +77,7 @@ func IsAuthenticated(ctx *WebContext) bool {
 	}
 
 	if error.Code != 0 {
-		ctx.Header.Set("WWW-Authenticate", "GDS realm=\"http://api.citeplasm.com/v1.0\"")
+		ctx.Header.Set("WWW-Authenticate", "GDS realm=\"http://api.citeplasm.com/\"")
 		ctx.Abort(401, error.Json())
 		return false
 	}

@@ -31,7 +31,7 @@ func NewResource(obj DbObject) Resource {
     var r Resource
     r.Label = obj.Label()
     // FIXME: there's probably a better way to integrate the API version.
-    r.Uri = "/v1.0" + obj.Uri()
+    r.Uri = obj.Uri()
 
     return r
 }
